@@ -1,7 +1,5 @@
 import re
-
 from datetime import datetime
-
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -9,6 +7,16 @@ from pydantic import (
     Field,
     field_validator,
 )
+
+
+def _check_password_strength(value: str) -> str:
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("Password must contain an uppercase letter")
+    if not re.search(r"[a-z]", value):
+        raise ValueError("Password must contain a lowercase letter")
+    if not re.search(r"\d", value):
+        raise ValueError("Password must contain a number")
+    return value
 
 
 class DeviceResponse(BaseModel):
@@ -38,29 +46,23 @@ class SensorReadingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserRegister(BaseModel):
+class AdminCreateUser(BaseModel):
     full_name: str = Field(min_length=2, max_length=150)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    role: str = "normal_user"
 
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, value):
-        if not re.search(r"[A-Z]", value):
-            raise ValueError(
-                "Password must contain an uppercase letter"
-            )
+        return _check_password_strength(value)
 
-        if not re.search(r"[a-z]", value):
-            raise ValueError(
-                "Password must contain a lowercase letter"
-            )
-
-        if not re.search(r"\d", value):
-            raise ValueError(
-                "Password must contain a number"
-            )
-
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value):
+        allowed_roles = {"admin", "normal_user"}
+        if value not in allowed_roles:
+            raise ValueError("Role must be 'admin' or 'normal_user'")
         return value
 
 
@@ -91,9 +93,21 @@ class RoleUpdate(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role(cls, value):
-        allowed_roles = {"normal_user", "guest"}
-
+        allowed_roles = {"admin", "normal_user"}
         if value not in allowed_roles:
-            raise ValueError("Invalid role")
-
+            raise ValueError("Role must be 'admin' or 'normal_user'")
         return value
+
+
+class StatusUpdate(BaseModel):
+    is_active: bool
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, value):
+        return _check_password_strength(value)
