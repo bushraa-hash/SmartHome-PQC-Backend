@@ -1,12 +1,23 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./smarthome.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./smarthome.db")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+# SQLAlchemy يحتاج postgresql:// بدل postgres://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True  # مهم جداً لـ Neon لتفادي انقطاع الاتصال بعد السكون
+    )
 
 SessionLocal = sessionmaker(
     autocommit=False,
