@@ -3,6 +3,11 @@ from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.pqc_manager import pqc_manager
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.services.audit_service import log_security_event
+
 
 router = APIRouter(
     prefix="/api/control",
@@ -38,7 +43,7 @@ def get_control_state():
 
 
 @router.post("/command")
-def update_control_state(command: ControlCommand):
+def update_control_state(command: ControlCommand, db: Session = Depends(get_db)):
     """إرسال أمر لتغيير الوضع (AUTO/MANUAL) أو تشغيل/إطفاء الضوء"""
     if command.mode is None and command.light_state is None:
         raise HTTPException(
@@ -61,6 +66,14 @@ def update_control_state(command: ControlCommand):
         device_state["light_state"] = command.light_state
 
     device_state["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    log_security_event(
+     db=db,
+     event_type="CONTROL_COMMAND",
+     severity="INFO",
+     actor="dashboard",
+     details=f"Mode={device_state['mode']}, Light={'ON' if device_state['light_state'] else 'OFF'}",
+    )
     return {
         "message": "Command applied successfully",
         "state": device_state

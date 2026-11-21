@@ -78,3 +78,13 @@ class User(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc)
     )
+
+class SecurityLog(Base):
+    __tablename__ = "security_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(50), nullable=False, index=True)
+    severity = Column(String(20), nullable=False, default="INFO")  # INFO, WARNING, CRITICAL
+    actor = Column(String(150), nullable=True)                     # email or device_id
+    details = Column(String(500), nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)

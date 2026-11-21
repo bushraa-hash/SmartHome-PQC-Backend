@@ -1,3 +1,5 @@
+from app.services.audit_service import log_security_event
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -84,6 +86,13 @@ def login(
     )
 
     if user is None:
+        log_security_event(
+         db=db,
+         event_type="LOGIN_FAILED",
+         severity="WARNING",
+         actor=login_data.email,
+         details="Failed login attempt (incorrect email or password)",
+       )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

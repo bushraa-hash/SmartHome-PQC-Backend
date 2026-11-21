@@ -7,6 +7,7 @@ from app.core.pqc_manager import pqc_manager
 from app.database import get_db
 from app.models import SensorReading
 from app.schemas import SensorReadingResponse
+from app.services.audit_service import log_security_event
 
 router = APIRouter(
     prefix="/api/pqc",
@@ -78,6 +79,13 @@ def receive_encrypted_sensor_reading(
         signature=b64_decode(payload.signature),
     )
     if not is_valid:
+        log_security_event(
+         db=db,
+         event_type="PQC_TAMPERING_DETECTED",
+         severity="CRITICAL",
+         actor=payload.device_id,
+         details="Invalid ML-DSA-65 (Dilithium) signature — possible MITM tampering attack blocked!",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid ML-DSA-65 (Dilithium) signature — possible tampering detected!",

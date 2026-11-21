@@ -9,7 +9,7 @@ from app.database import Base, engine, SessionLocal
 from app.models import Device, User
 from app.core.security import hash_password
 from app.routers import devices, sensors, auth, control
-
+from app.routers import logs
 
 def seed_devices():
     db = SessionLocal()
@@ -107,7 +107,7 @@ app.include_router(devices.router)
 app.include_router(sensors.router)
 app.include_router(auth.router)
 app.include_router(pqc.router)
-
+app.include_router(logs.router)
 
 @app.get("/")
 def root():
