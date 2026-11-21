@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 from app.schemas import (
+    UserRegister,
     AdminCreateUser,
     UserLogin,
     UserResponse,
     TokenResponse,
     RoleUpdate,
+    ApproveUser,
     StatusUpdate,
     PasswordChange,
 )
@@ -35,6 +37,39 @@ router = APIRouter(
 
 
 @router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_request(
+    user_data: UserRegister,
+    db: Session = Depends(get_db),
+):
+    normalized_email = user_data.email.strip().lower()
+    existing_user = get_user_by_email(db, normalized_email)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered or pending approval",
+        )
+
+    user = User(
+        full_name=user_data.full_name.strip(),
+        email=normalized_email,
+        hashed_password=hash_password(user_data.password),
+        role="pending",
+        is_active=False,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+
+@router.post(
     "/login",
     response_model=TokenResponse,
 )
@@ -53,6 +88,12 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user.role == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending admin approval",
         )
 
     if not user.is_active:
@@ -148,6 +189,66 @@ def admin_create_user(
     db.refresh(user)
 
     return user
+
+
+@router.patch(
+    "/users/{user_id}/approve",
+    response_model=UserResponse,
+)
+def approve_pending_user(
+    user_id: int,
+    approve_data: ApproveUser,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_roles("admin")),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.role != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already approved",
+        )
+
+    user.role = approve_data.role
+    user.is_active = True
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+
+@router.delete(
+    "/users/{user_id}/reject",
+)
+def reject_pending_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_roles("admin")),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.role != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending requests can be rejected",
+        )
+
+    db.delete(user)
+    db.commit()
+
+    return {"message": "Registration request rejected and removed"}
 
 
 @router.patch(

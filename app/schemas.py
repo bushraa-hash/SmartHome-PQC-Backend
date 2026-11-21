@@ -10,12 +10,16 @@ from pydantic import (
 
 
 def _check_password_strength(value: str) -> str:
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 characters long")
     if not re.search(r"[A-Z]", value):
-        raise ValueError("Password must contain an uppercase letter")
+        raise ValueError("Password must contain at least one uppercase letter")
     if not re.search(r"[a-z]", value):
-        raise ValueError("Password must contain a lowercase letter")
+        raise ValueError("Password must contain at least one lowercase letter")
     if not re.search(r"\d", value):
-        raise ValueError("Password must contain a number")
+        raise ValueError("Password must contain at least one number")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+        raise ValueError("Password must contain at least one special character (!@#$%^&*)")
     return value
 
 
@@ -44,6 +48,17 @@ class SensorReadingResponse(BaseModel):
     timestamp: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserRegister(BaseModel):
+    full_name: str = Field(min_length=2, max_length=150)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value):
+        return _check_password_strength(value)
 
 
 class AdminCreateUser(BaseModel):
@@ -89,6 +104,18 @@ class TokenResponse(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: str
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value):
+        allowed_roles = {"admin", "normal_user"}
+        if value not in allowed_roles:
+            raise ValueError("Role must be 'admin' or 'normal_user'")
+        return value
+
+
+class ApproveUser(BaseModel):
+    role: str = "normal_user"
 
     @field_validator("role")
     @classmethod
