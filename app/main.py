@@ -1,4 +1,5 @@
 import os
+from app.routers import pqc
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -105,6 +106,7 @@ app.include_router(control.router)
 app.include_router(devices.router)
 app.include_router(sensors.router)
 app.include_router(auth.router)
+app.include_router(pqc.router)
 
 
 @app.get("/")
