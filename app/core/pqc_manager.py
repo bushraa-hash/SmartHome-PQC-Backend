@@ -59,6 +59,11 @@ class PQCManager:
     def get_session(self, device_id: str) -> dict[str, bytes] | None:
         return self.sessions.get(device_id)
 
+    def sign_payload(self, payload: dict) -> str:
+        """توقيع أي قاموس بيانات بمفتاح السيرفر الخاص (ML-DSA-65) وإرجاعه بصيغة Base64"""
+        sig = sign_data(self.server_dsa_sk, payload)
+        return b64_encode(sig)
+
 
 # نسخة واحدة مشتركة على مستوى التطبيق
 pqc_manager = PQCManager()

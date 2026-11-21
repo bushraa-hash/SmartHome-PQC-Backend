@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Literal, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from app.core.pqc_manager import pqc_manager
 
 router = APIRouter(
     prefix="/api/control",
@@ -23,8 +24,17 @@ class ControlCommand(BaseModel):
 
 @router.get("/state")
 def get_control_state():
-    """الرازبيري والواجهة بيطلبوا هذا الرابط لمعرفة الوضع الحالي وحالة الضوء"""
-    return device_state
+    """الرازبيري والواجهة بيطلبوا هذا الرابط لمعرفة الوضع الحالي وحالة الضوء (موقّع بـ ML-DSA-65)"""
+    payload = {
+        "mode": device_state["mode"],
+        "light_state": device_state["light_state"],
+    }
+    signature = pqc_manager.sign_payload(payload)
+    return {
+        **device_state,
+        "signature": signature,
+    }
+  
 
 
 @router.post("/command")
