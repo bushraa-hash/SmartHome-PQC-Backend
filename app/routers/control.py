@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 from typing import Literal, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.core.pqc_manager import pqc_manager
-from fastapi import Depends
 from sqlalchemy.orm import Session
+
+from app.core.pqc_manager import pqc_manager
+from app.core.security import require_roles
 from app.database import get_db
+from app.models import User
 from app.services.audit_service import log_security_event
 
 
@@ -39,12 +41,15 @@ def get_control_state():
         **device_state,
         "signature": signature,
     }
-  
 
 
 @router.post("/command")
-def update_control_state(command: ControlCommand, db: Session = Depends(get_db)):
-    """إرسال أمر لتغيير الوضع (AUTO/MANUAL) أو تشغيل/إطفاء الضوء"""
+def update_control_state(
+    command: ControlCommand,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin", "normal_user")),
+):
+    """إرسال أمر لتغيير الوضع (AUTO/MANUAL) أو تشغيل/إطفاء الضوء (محمي بـ JWT)"""
     if command.mode is None and command.light_state is None:
         raise HTTPException(
             status_code=400,
@@ -67,12 +72,14 @@ def update_control_state(command: ControlCommand, db: Session = Depends(get_db))
 
     device_state["updated_at"] = datetime.now(timezone.utc).isoformat()
 
+    actor_name = getattr(current_user, "email", None) or getattr(current_user, "username", "dashboard")
+
     log_security_event(
-     db=db,
-     event_type="CONTROL_COMMAND",
-     severity="INFO",
-     actor="dashboard",
-     details=f"Mode={device_state['mode']}, Light={'ON' if device_state['light_state'] else 'OFF'}",
+        db=db,
+        event_type="CONTROL_COMMAND",
+        severity="INFO",
+        actor=actor_name,
+        details=f"Mode={device_state['mode']}, Light={'ON' if device_state['light_state'] else 'OFF'}",
     )
     return {
         "message": "Command applied successfully",
