@@ -1,15 +1,14 @@
 import os
-from app.routers import pqc
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine, SessionLocal
-from app.models import Device, User
 from app.core.security import hash_password
-from app.routers import devices, sensors, auth, control
-from app.routers import logs
+from app.database import Base, SessionLocal, engine
+from app.models import Device, User
+from app.routers import auth, control, devices, logs, pqc, sensors
+
 
 def seed_devices():
     db = SessionLocal()
@@ -70,6 +69,7 @@ def seed_admin():
             email=admin_email,
             hashed_password=hash_password(admin_password),
             role="admin",
+            status="active",
             is_active=True,
         )
         db.add(admin_user)
@@ -108,6 +108,7 @@ app.include_router(sensors.router)
 app.include_router(auth.router)
 app.include_router(pqc.router)
 app.include_router(logs.router)
+
 
 @app.get("/")
 def root():

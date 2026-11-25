@@ -20,7 +20,7 @@ router = APIRouter(
 device_state = {
     "mode": "AUTO",          # AUTO أو MANUAL
     "light_state": False,    # True = ON, False = OFF
-    "updated_at": datetime.now(timezone.utc).isoformat()
+    "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 }
 
 
@@ -70,7 +70,7 @@ def update_control_state(
             )
         device_state["light_state"] = command.light_state
 
-    device_state["updated_at"] = datetime.now(timezone.utc).isoformat()
+    device_state["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     actor_name = getattr(current_user, "email", None) or getattr(current_user, "username", "dashboard")
 

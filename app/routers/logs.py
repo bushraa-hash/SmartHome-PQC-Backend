@@ -1,11 +1,12 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 from sqlalchemy.orm import Session
 
 from app.core.security import require_roles
 from app.database import get_db
 from app.models import SecurityLog, User
+from app.schemas import _format_utc_z
 
 router = APIRouter(
     prefix="/api/logs",
@@ -20,6 +21,10 @@ class SecurityLogResponse(BaseModel):
     actor: str | None
     details: str
     timestamp: datetime
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, value: datetime) -> str:
+        return _format_utc_z(value)
 
     model_config = ConfigDict(from_attributes=True)
 

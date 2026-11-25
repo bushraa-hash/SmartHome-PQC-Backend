@@ -1,12 +1,21 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import (
     BaseModel,
     ConfigDict,
     EmailStr,
     Field,
+    field_serializer,
     field_validator,
 )
+
+
+def _format_utc_z(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 def _check_password_strength(value: str) -> str:
@@ -31,6 +40,10 @@ class DeviceResponse(BaseModel):
     status: str
     created_at: datetime
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return _format_utc_z(value)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -46,6 +59,10 @@ class SensorReadingResponse(BaseModel):
     humidity: float | None
     motion: bool
     timestamp: datetime
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, value: datetime) -> str:
+        return _format_utc_z(value)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,8 +108,13 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role: str
+    status: str
     is_active: bool
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return _format_utc_z(value)
 
     model_config = ConfigDict(from_attributes=True)
 
